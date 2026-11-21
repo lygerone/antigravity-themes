@@ -13,7 +13,8 @@
     "src",
     "themes",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "repository": {
     "type": "git",

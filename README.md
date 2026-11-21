@@ -1,76 +1,89 @@
 # antigravity-themes
 
-面向 **macOS (Apple Silicon / ARM64)** 桌面版 **Antigravity** 的双色主题库、三栏布局精修与零依赖实时皮肤切换工具。
+<p align="left">
+  <strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a>
+</p>
 
-## 特性
+A zero-dependency theme library, layout refinement pack, and instant in-app switcher for the **Antigravity** desktop app on **macOS (Apple Silicon / ARM64)**.
 
-* **6 套精调双色主题（Light + Dark 共 12 套配色）**：
-  * **`iris`（默认）**：纯白画布 + 极轻紫雾侧栏 / 深黑曜石紫
-  * **`slate`**：冷岩极客白 / 深海 Slate 暗蓝
-  * **`mono`**：画廊纯白中性灰 / OLED 纯黑
-  * **`stone`**：清透暖石白 / 浓缩炭黑
-  * **`emerald`**：清冽雾青 / 深松黑曜
-  * **`midnight`**：冰白靛蓝 / 深空蓝黑
-* **对齐宿主原生 4 级墨阶与半透明状态层**：
-  * 精准区分 `--foreground`（100% 主文）、`--secondary-foreground`（~74% 次级正文）、`--muted-foreground`（~56% 辅助说明）与 `--placeholder`（~42% 占位提示），全部 12 套配色均通过自动化 **WCAG AA（`>= 4.5:1`）** 对比度校验。
-  * 边框与交互状态采用 `4%–10%` 半透明叠加层，暗色浮层保留 `1px` 顶部高光（`--glass-highlight`），并配套每套主题独立的语法高亮与 Diff 增删高亮。
-* **侧边栏顶栏艺术纹理（自动跟随主题与深浅模式变色）**：
-  * **`starlight`（默认）**：星空夜幕（渐变夜空 + 星云微光 + 四角星芒 + 柔和云带）
-  * **`blueprint`**：蓝图网格（建筑细网格 + 标尺刻度 + 虚线圆弧标注）
-  * **`none`**：纯净关闭
-* **应用内 `0ms` 实时热切换（无需重启或重打补丁）**：
-  * 单次 `apply` 即携带全部 6 套双色主题、3 种顶栏纹理与 2 档界面密度（紧凑 / 舒适）。
-  * 在 Antigravity 内按 **`Cmd+Option+A`** 或点击**左侧栏底角调色盘按钮**即可呼出切换器：顶栏支持 **白天 / 黑夜 / 自动** 一键实时切换，内置跟随深浅模式联动的迷你桌面线框预览卡、方向键与 `Tab` 焦点循环，持久化至 `localStorage` 并跨窗口同步。
-* **安全、可回滚、与已有补丁共存**：
-  * 零第三方 npm 依赖（仅使用 Node.js >= 20 标准库），内置纯 Node.js ASAR 解析/增量打包与 4MB 分块 SHA-256 校验。
-  * 采用独立起止标记幂等注入与字节级卸载，**保留已有汉化等其他共存补丁，不覆盖应用内原有 `app.asar.bak`**。
-  * 首次应用自动在 `~/.antigravity-themes/backups/<version>/` 生成独立版本快照，自动同步 `Info.plist` `ElectronAsarIntegrity` 并执行 macOS Ad-hoc 重签。
-  * 严格保护内置浏览器透明镂空通道（`data-has-browser-hole="true"`）。
+## Features
 
-## 快速开始
+* **6 Curated Dual-Mode Themes (12 Light & Dark Palettes)**:
+  * **`iris` (Default)**: Crisp white canvas with whisper violet sidebar / deep obsidian plum
+  * **`slate`**: Cool architectural white / deep ocean slate (`#0F172A`)
+  * **`mono`**: Gallery monochrome white / OLED pure black
+  * **`stone`**: Warm alabaster paper / dark espresso charcoal
+  * **`emerald`**: Mist-sage light / deep pine dark
+  * **`midnight`**: Ice-white indigo / deep space navy
+* **Native 4-Tier Ink Hierarchy & Translucent Surfaces**:
+  * Precisely calibrated `--foreground` (100%), `--secondary-foreground` (~74%), `--muted-foreground` (~56%), and `--placeholder` (~42%) ink tiers — all 12 palettes pass automated **WCAG AA (`>= 4.5:1`)** contrast checks.
+  * Uses subtle `4%–10%` translucent borders and interaction layers with a crisp `1px` specular top highlight (`--glass-highlight`) in dark mode, paired with per-theme syntax highlighting and diff colors.
+* **Dynamic Sidebar Stage Artwork (Theme-Adaptive)**:
+  * **`starlight` (Default)**: Starlit night sky gradient with soft nebula mist, sparkles, and horizon clouds
+  * **`blueprint`**: Architectural grid with top scale ticks and dashed dimension lines
+  * **`none`**: Clean solid header
+* **`0ms` In-App Live Switcher (No Restart Required)**:
+  * A single `apply` bundles all 6 dual-mode themes, 3 header backdrops, and 2 UI density modes (`compact` / `comfortable`).
+  * Press **`Cmd+Option+A`** or click the **bottom-left palette button** in the sidebar to open the picker: toggle **Light / Dark / Auto** right from the header, preview themes via live wireframe thumbnails, navigate with Arrow keys & Tab focus loop, and persist preferences to `localStorage` with cross-window sync.
+* **Safe, Reversible & Patch-Friendly**:
+  * Zero third-party npm dependencies (Node.js `>= 20` standard library only), with a built-in pure-JS ASAR parser/rebuilder and 4MB-block SHA-256 verifier.
+  * Uses isolated idempotent markers for byte-exact removal — **preserves other coexisting patches (such as localization patches) and never overwrites `app.asar.bak`**.
+  * Automatically creates a versioned snapshot in `~/.antigravity-themes/backups/<version>/` on first run, syncs `Info.plist` `ElectronAsarIntegrity`, and re-signs the app with macOS Ad-hoc `codesign`.
+  * Strictly preserves the built-in browser cutout transparency (`data-has-browser-hole="true"`).
 
-先完全退出 Antigravity 桌面客户端（`Cmd+Q`），然后运行：
+## Quick Start
+
+Quit Antigravity completely (`Cmd+Q`), then run:
 
 ```bash
-# 免克隆一键安装全部 6 套双色皮肤与内置切换器（默认 iris + starlight 星空顶栏）
+# Install all 6 dual-mode themes and the in-app switcher (default: iris + starlight)
 npx antigravity-themes apply
 
-# 查看已收录的全部主题与顶栏纹理
+# List all available themes and header backdrops
 npx antigravity-themes themes
 
-# 指定默认启动色与初始预设 / 顶栏纹理
+# Customize initial default preset and backdrop
 npx antigravity-themes apply --preset slate --backdrop starlight
 npx antigravity-themes apply --preset mono --backdrop blueprint
 
-# 校验 ASAR 分块完整性与 macOS 代码签名
+# Verify ASAR block SHA-256 integrity and macOS code signature
 npx antigravity-themes verify
 ```
 
-重新打开 Antigravity 后，随时按 **`Cmd+Option+A`** 或点击左侧栏底角调色盘图标，即可无缝切换皮肤、白天/黑夜/自动模式、顶栏纹理与界面密度。
+Reopen Antigravity and press **`Cmd+Option+A`** (or click the bottom-left sidebar palette button) anytime to switch themes, Light / Dark / Auto mode, header artwork, and UI density instantly.
 
-### 卸载与还原
+### Running From Source
 
 ```bash
-# 精准剥离皮肤补丁（保留汉化等其他共存补丁）
-node bin/antigravity-themes.mjs restore
-
-# 或从 ~/.antigravity-themes/backups/<version>/ 恢复首次备份快照
-node bin/antigravity-themes.mjs restore --from-backup
+git clone https://github.com/lygerone/antigravity-themes.git
+cd antigravity-themes
+node bin/antigravity-themes.mjs apply
+node bin/antigravity-themes.mjs verify
 ```
 
-### 升级 Antigravity 后的恢复说明
+### Uninstall / Restore
 
-升级 Antigravity 客户端会整包覆盖 `/Applications/Antigravity.app`，皮肤补丁需重新应用；你此前在切换器中选择的主题、明暗模式与密度保存在应用用户数据 `localStorage` 中不会丢失，升级后退出客户端重新执行一次 `apply` 即可恢复。
+```bash
+# Cleanly strip theme patches while keeping other coexisting patches intact
+npx antigravity-themes restore
 
-## 测试
+# Or restore the full pre-patch snapshot from ~/.antigravity-themes/backups/<version>/
+npx antigravity-themes restore --from-backup
+```
+
+### After Upgrading Antigravity
+
+Upgrading the Antigravity desktop app replaces `/Applications/Antigravity.app`, so theme patches must be re-applied. Your selected theme, Light/Dark mode, backdrop, and density are stored in the app's user-data `localStorage` and remain intact — simply quit Antigravity and run `npx antigravity-themes apply` again after updating.
+
+## Testing
 
 ```bash
 npm test
 ```
 
-## 免责声明
+## Disclaimer
 
-本项目为社区非官方美化工具，与 Google Antigravity 无官方关联。
+This is an unofficial community theming tool and is not affiliated with or endorsed by Google Antigravity.
 
 ## License
 
