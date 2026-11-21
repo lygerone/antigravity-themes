@@ -24,7 +24,7 @@ A zero-dependency theme library, layout refinement pack, and instant in-app swit
   * **`none`**: Clean solid header
 * **`0ms` In-App Live Switcher (No Restart Required)**:
   * A single `apply` bundles all 6 dual-mode themes, 3 header backdrops, and 2 UI density modes (`compact` / `comfortable`).
-  * Press **`Cmd+Option+A`** or click the **bottom-left palette button** in the sidebar to open the picker: toggle **Light / Dark / Auto** right from the header, preview themes via live wireframe thumbnails, navigate with Arrow keys & Tab focus loop, and persist preferences to `localStorage` with cross-window sync.
+  * Press **`Cmd+Option+T`** or click the **bottom-left palette button** in the sidebar to open the picker: toggle **Light / Dark / Auto** right from the header, preview themes via live wireframe thumbnails, navigate with Arrow keys & Tab focus loop, and persist preferences to `localStorage` with cross-window sync.
 * **Safe, Reversible & Patch-Friendly**:
   * Zero third-party npm dependencies (Node.js `>= 20` standard library only), with a built-in pure-JS ASAR parser/rebuilder and 4MB-block SHA-256 verifier.
   * Uses isolated idempotent markers for byte-exact removal — **preserves other coexisting patches (such as localization patches) and never overwrites `app.asar.bak`**.
@@ -50,7 +50,7 @@ npx antigravity-themes apply --preset mono --backdrop blueprint
 npx antigravity-themes verify
 ```
 
-Reopen Antigravity and press **`Cmd+Option+A`** (or click the bottom-left sidebar palette button) anytime to switch themes, Light / Dark / Auto mode, header artwork, and UI density instantly.
+Reopen Antigravity and press **`Cmd+Option+T`** (or click the bottom-left sidebar palette button) anytime to switch themes, Light / Dark / Auto mode, header artwork, and UI density instantly.
 
 ### Running From Source
 

@@ -48,7 +48,7 @@ function printUsage() {
 命令:
   themes                 列出已收录的全部双色主题与顶栏纹理
   status                 检查宿主版本、皮肤状态、共存补丁、备份与签名状态
-  apply                  备份并注入全套双色皮肤与内置切换器（⌘⌥A）
+  apply                  备份并注入全套双色皮肤与内置切换器（⌥⌘T）
   restore                卸载皮肤（默认精准剥离并保留汉化等其他补丁）
   verify                 校验 app.asar 分块完整性、Info.plist 哈希与 codesign 签名
 
@@ -63,7 +63,7 @@ function printUsage() {
 
 提示:
   单次 apply 即包含全部 ${THEME_PRESETS.length} 套双色主题（共 ${THEME_PRESETS.length * 2} 套配色）与 3 种顶栏纹理，
-  安装后可在 Antigravity 内随时按 Cmd+Option+A 或点击左侧栏底角调色盘按钮 0ms 实时切换皮肤与白天/黑夜模式。`);
+  安装后可在 Antigravity 内随时按 Cmd+Option+T 或点击左侧栏底角调色盘按钮 0ms 实时切换皮肤与白天/黑夜模式。`);
 }
 
 function parseCliArgs(argv) {
@@ -136,7 +136,7 @@ function handleThemes() {
   console.log(' * starlight  星空夜幕（渐变夜空 + 星云微光 + 星芒 + 云带，随当前主题自动变色）');
   console.log('   blueprint  蓝图网格（建筑网格 + 标尺刻度 + 虚线圆弧标注，随当前主题自动变色）');
   console.log('   none       纯净关闭');
-  console.log('\n在应用内按 Cmd+Option+A（或点击左侧栏底角调色盘按钮）可 0ms 实时切换皮肤、明暗模式、顶栏纹理与界面密度。');
+  console.log('\n在应用内按 Cmd+Option+T（或点击左侧栏底角调色盘按钮）可 0ms 实时切换皮肤、明暗模式、顶栏纹理与界面密度。');
 }
 
 function handleStatus(options) {
@@ -278,7 +278,7 @@ function handleApply(options) {
   console.log('应用成功:');
   console.log(`  - ElectronAsarIntegrity: ${plistUpdated ? '已同步更新' : '未启用'}`);
   console.log('  - macOS Ad-hoc 重签: 已通过校验');
-  console.log(`重新打开 Antigravity 后，按 Cmd+Option+A 或点击左侧栏底角调色盘按钮即可随时切换 ${THEME_PRESETS.length} 套双色皮肤与白天/黑夜模式。`);
+  console.log(`重新打开 Antigravity 后，按 Cmd+Option+T 或点击左侧栏底角调色盘按钮即可随时切换 ${THEME_PRESETS.length} 套双色皮肤与白天/黑夜模式。`);
 }
 
 function handleRestore(options) {

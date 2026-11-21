@@ -316,6 +316,29 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
   assert.ok(pickerDialog.innerHTML.includes('data-mode-id="auto"'));
   assert.ok(pickerDialog.innerHTML.includes('data-preset-id="slate"'));
   assert.ok(pickerDialog.innerHTML.includes('data-density-id="comfortable"'));
+
+  const pressOptionCommand = (code, key) => {
+    let prevented = false;
+    winListeners.get('keydown')({
+      metaKey: true,
+      ctrlKey: false,
+      altKey: true,
+      shiftKey: false,
+      code,
+      key,
+      preventDefault: () => {
+        prevented = true;
+      },
+      stopPropagation: () => {},
+    });
+    return prevented;
+  };
+  assert.equal(pressOptionCommand('KeyA', 'å'), false, '⌥⌘A 是 Antigravity 的「归档此对话」，必须放行');
+  assert.equal(pickerBackdrop.getAttribute('data-open'), 'false');
+  assert.equal(pressOptionCommand('KeyT', '†'), true);
+  assert.equal(pickerBackdrop.getAttribute('data-open'), 'true');
+  winListeners.get('message')({ data: { type: 'antigravity-themes:toggle-picker' } });
+  assert.equal(pickerBackdrop.getAttribute('data-open'), 'false', 'sidecar 转发来的快捷键应切换主窗口的切换器');
 });
 
 test('preload 与 utils/splash 支持任意预设幂等切换、共存汉化且卸载字节级还原', () => {
@@ -404,6 +427,7 @@ test('runtime 在同一窗口被重复注入时只初始化一次（sidecar 每�
   runRuntimeIn(env, runtimeScript);
   assert.equal(env.windowListeners.get('message').length, 1);
   assert.equal(env.windowListeners.get('load').length, 1);
+  assert.equal(env.windowListeners.get('keydown').length, 1);
 });
 
 test('sidecar iframe 启动时向主窗口索取主题选择，且只接受 parent 下发的配置', () => {
@@ -436,6 +460,14 @@ test('sidecar iframe 启动时向主窗口索取主题选择，且只接受 pare
   assert.throws(
     () => onMessage({ source: parentWindow, data: { type: 'antigravity-themes:choices', choices: 'emerald' } }),
     /choices 不是对象: "emerald"/
+  );
+
+  const [onKeydown] = env.windowListeners.get('keydown');
+  onKeydown({ metaKey: true, altKey: true, shiftKey: false, code: 'KeyT', key: '†', preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(
+    messagesToParent.at(-1),
+    { message: { type: 'antigravity-themes:toggle-picker' }, targetOrigin: '*' },
+    '焦点在 sidecar 里按 ⌥⌘T 应转发给主窗口'
   );
 });
 

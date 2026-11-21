@@ -21,6 +21,7 @@
   const SIDECAR_IFRAME_SELECTOR = 'iframe[data-testid="sidecar-iframe"]';
   const SIDECAR_REQUEST_MESSAGE = 'antigravity-themes:request-choices';
   const SIDECAR_CHOICES_MESSAGE = 'antigravity-themes:choices';
+  const SIDECAR_TOGGLE_PICKER_MESSAGE = 'antigravity-themes:toggle-picker';
   const SKIN_CSS = __AT_THEME_CSS__;
 
   const THEME_CATALOG = [
@@ -194,7 +195,6 @@
   let observersBound = false;
   let bodyObserved = false;
   let headObserved = false;
-  let hotkeyBound = false;
   let attrObserver = null;
   let headObserver = null;
   let domObserver = null;
@@ -292,6 +292,8 @@
       postChoicesToSidecars();
     } else if (messageType === SIDECAR_CHOICES_MESSAGE) {
       applyChoicesFromHost(event);
+    } else if (messageType === SIDECAR_TOGGLE_PICKER_MESSAGE) {
+      toggleThemePicker();
     }
   }
 
@@ -659,7 +661,7 @@
       const fab = document.createElement('button');
       fab.id = 'at-theme-switcher-fab';
       fab.type = 'button';
-      fab.title = '切换主题皮肤 (⌘⌥A)';
+      fab.title = '切换主题皮肤 (⌥⌘T)';
       fab.setAttribute('aria-label', '切换主题皮肤');
       fab.setAttribute('aria-haspopup', 'dialog');
       fab.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`;
@@ -716,7 +718,7 @@
           </div>
           <div class="at-picker-header-right">
             <div class="at-picker-mode-switch" role="group" aria-label="明暗模式切换">${modeHtml}</div>
-            <span class="at-picker-shortcut">⌘⌥A</span>
+            <span class="at-picker-shortcut">⌥⌘T</span>
           </div>
         </div>
         <div class="at-picker-grid">${cardsHtml}</div>
@@ -773,40 +775,49 @@
       refreshPickerSelection();
     }
 
-    if (!hotkeyBound && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      hotkeyBound = true;
-      window.addEventListener('keydown', (event) => {
-        const isToggle =
-          (event.metaKey || event.ctrlKey) &&
-          event.altKey &&
-          !event.shiftKey &&
-          (event.code === 'KeyA' || String(event.key || '').toLowerCase() === 'a');
-        if (isToggle) {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleThemePicker();
-          return;
-        }
-        if (event.key === 'Escape') {
-          const backdropEl = document.getElementById('at-theme-picker-backdrop');
-          if (backdropEl?.getAttribute('data-open') === 'true') {
-            event.preventDefault();
-            toggleThemePicker(false);
-          }
-        }
-      });
-      window.addEventListener('storage', (event) => {
-        if (
-          event.key === STORAGE_PRESET_KEY ||
-          event.key === STORAGE_BACKDROP_KEY ||
-          event.key === STORAGE_DENSITY_KEY ||
-          event.key === STORAGE_MODE_KEY
-        ) {
-          runWithoutTransitions(() => {
-            ensureStyleInjected();
-            refreshPickerSelection();
-          });
-        }
+  }
+
+  // ⌥⌘T：⌥⌘A 是 Antigravity 自带的「归档此对话」，不能占用
+  function isThemePickerHotkey(event) {
+    return (
+      (event.metaKey || event.ctrlKey) &&
+      event.altKey &&
+      !event.shiftKey &&
+      (event.code === 'KeyT' || String(event.key || '').toLowerCase() === 't')
+    );
+  }
+
+  function onWindowKeydown(event) {
+    if (isThemePickerHotkey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (window.parent !== window) {
+        // 焦点在 sidecar iframe 里：切换器在主窗口，转发过去
+        window.parent.postMessage({ type: SIDECAR_TOGGLE_PICKER_MESSAGE }, '*');
+      } else {
+        toggleThemePicker();
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      const backdropEl = document.getElementById('at-theme-picker-backdrop');
+      if (backdropEl?.getAttribute('data-open') === 'true') {
+        event.preventDefault();
+        toggleThemePicker(false);
+      }
+    }
+  }
+
+  function onWindowStorage(event) {
+    if (
+      event.key === STORAGE_PRESET_KEY ||
+      event.key === STORAGE_BACKDROP_KEY ||
+      event.key === STORAGE_DENSITY_KEY ||
+      event.key === STORAGE_MODE_KEY
+    ) {
+      runWithoutTransitions(() => {
+        ensureStyleInjected();
+        refreshPickerSelection();
       });
     }
   }
@@ -966,6 +977,9 @@
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('load', boot);
     window.addEventListener('message', routeThemeMessage);
+    // 捕获阶段：先于宿主的快捷键处理执行，同一按键不会再触发宿主动作
+    window.addEventListener('keydown', onWindowKeydown, true);
+    window.addEventListener('storage', onWindowStorage);
   }
   if (window.parent !== window) {
     window.parent.postMessage({ type: SIDECAR_REQUEST_MESSAGE }, '*');
