@@ -1,4 +1,4 @@
-// antigravity-themes (v1.0.0) 渲染进程主题引擎与内置实时切换器
+// antigravity-themes (v1.0.2) 渲染进程主题引擎与内置实时切换器
 // 由 theme-bundle.mjs 内联样式表、默认主题预设与默认顶栏纹理后注入 preload / sidecar
 
 (() => {

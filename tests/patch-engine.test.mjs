@@ -368,7 +368,7 @@ test('preload 与 utils/splash 支持任意预设幂等切换、共存汉化且�
   assert.equal(state.themeId, 'studio');
   assert.equal(state.themePreset, 'slate');
   assert.equal(state.stageBackdrop, 'blueprint');
-  assert.equal(state.themeVersion, '1.0.1');
+  assert.equal(state.themeVersion, '1.0.2');
   assert.equal(state.hasChineseLocalization, true);
 });
 
