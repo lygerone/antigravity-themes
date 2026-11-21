@@ -1,0 +1,48 @@
+{
+  "name": "antigravity-themes",
+  "version": "1.0.0",
+  "description": "面向 macOS ARM64 Antigravity 桌面端的双色皮肤库、布局精修与零依赖实时切换工具",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "antigravity-themes": "./bin/antigravity-themes.mjs",
+    "agy-themes": "./bin/antigravity-themes.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "themes",
+    "LICENSE",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lygerone/antigravity-themes.git"
+  },
+  "homepage": "https://github.com/lygerone/antigravity-themes#readme",
+  "bugs": {
+    "url": "https://github.com/lygerone/antigravity-themes/issues"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "themes": "node bin/antigravity-themes.mjs themes",
+    "status": "node bin/antigravity-themes.mjs status",
+    "apply": "node bin/antigravity-themes.mjs apply",
+    "restore": "node bin/antigravity-themes.mjs restore",
+    "verify": "node bin/antigravity-themes.mjs verify"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "keywords": [
+    "antigravity",
+    "antigravity-themes",
+    "theme",
+    "skin",
+    "macos",
+    "electron"
+  ]
+}
