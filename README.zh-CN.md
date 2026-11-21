@@ -71,6 +71,13 @@ npx antigravity-themes restore
 npx antigravity-themes restore --from-backup
 ```
 
+### 代码签名与自动更新
+
+`apply` 和 `restore` 会对 `Antigravity.app` 做 macOS Ad-hoc 重签，Google 的官方签名会被替换。`restore`（包括 `--from-backup`）只还原 `app.asar` 与 `Info.plist`，恢复不了官方签名。这会带来两个影响：
+
+* 应用内自动更新会校验新版本与当前应用的签名是否匹配，打补丁后**自动更新可能失败**。遇到这种情况，请到官网下载最新版重新安装，再执行一次 `npx antigravity-themes apply`。
+* 想彻底恢复官方签名，只能重新安装官方版本。
+
 ### 升级 Antigravity 后的恢复说明
 
 升级 Antigravity 客户端会整包覆盖 `/Applications/Antigravity.app`，皮肤补丁需重新应用；你此前在切换器中选择的主题、明暗模式与密度保存在应用用户数据 `localStorage` 中不会丢失，升级后退出客户端重新执行一次 `npx antigravity-themes apply` 即可恢复。

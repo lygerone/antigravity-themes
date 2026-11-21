@@ -1,4 +1,4 @@
-// antigravity-themes (v1.0.2) 渲染进程主题引擎与内置实时切换器
+// antigravity-themes 渲染进程主题引擎与内置实时切换器
 // 由 theme-bundle.mjs 内联样式表、默认主题预设与默认顶栏纹理后注入 preload / sidecar
 
 (() => {
@@ -18,6 +18,7 @@
   const STORAGE_BACKDROP_KEY = 'antigravity-themes:backdrop';
   const STORAGE_DENSITY_KEY = 'antigravity-themes:density';
   const STORAGE_MODE_KEY = 'antigravity-themes:mode';
+  const SIDEBAR_FOOTER_ATTR = 'data-at-sidebar-footer';
   const SIDECAR_IFRAME_SELECTOR = 'iframe[data-testid="sidecar-iframe"]';
   const SIDECAR_REQUEST_MESSAGE = 'antigravity-themes:request-choices';
   const SIDECAR_CHOICES_MESSAGE = 'antigravity-themes:choices';
@@ -431,6 +432,16 @@
     }
   }
 
+  // 给设置按钮的父容器打标记：CSS 用属性选择器命中它，代替要对每个元素求值的无锚点 :has(> [data-testid="settings-button"])
+  function markSettingsButtonContainers() {
+    for (const settingsButton of document.querySelectorAll('[data-testid="settings-button"]')) {
+      const container = settingsButton.parentElement;
+      if (container && !container.hasAttribute(SIDEBAR_FOOTER_ATTR)) {
+        container.setAttribute(SIDEBAR_FOOTER_ATTR, '');
+      }
+    }
+  }
+
   function syncSidebarState() {
     const root = document.documentElement;
     if (!root || typeof document.querySelector !== 'function') {
@@ -454,12 +465,15 @@
       if (root.getAttribute('data-at-sidebar-open') !== isOpen) {
         root.setAttribute('data-at-sidebar-open', isOpen);
       }
-      if (width > 120 && root.style && typeof root.style.setProperty === 'function') {
-        root.style.setProperty('--at-sidebar-width', `${Math.round(width)}px`);
+      // 写在 body 上：<html> 的 style 被 attrObserver 监听，写在那里会让拖动侧栏时每帧重跑整个 boot
+      const bodyStyle = document.body?.style;
+      if (width > 120 && bodyStyle && typeof bodyStyle.setProperty === 'function') {
+        bodyStyle.setProperty('--at-sidebar-width', `${Math.round(width)}px`);
       }
     };
 
     applyWidth(sidebarPane.getBoundingClientRect().width);
+    markSettingsButtonContainers();
     // 直接挂载到拥有 bg-sidebar 的真实侧边栏导航容器内（不依赖英文 aria-label，兼容任意语言本地化）
     const sidebarNav =
       document.querySelector('[data-testid="sidebar-split"] > :first-child [role="navigation"]') ??
@@ -473,6 +487,8 @@
       sidebarObserver = new ResizeObserver((entries) => {
         const entryWidth = entries[0]?.contentRect?.width ?? sidebarPane.getBoundingClientRect().width;
         applyWidth(entryWidth);
+        // 侧栏收起再展开时底部容器可能被重建，宽度变化时补打标记
+        markSettingsButtonContainers();
       });
       sidebarObserver.observe(sidebarPane);
       observedSidebarEl = sidebarPane;
@@ -822,6 +838,16 @@
     }
   }
 
+  // 只有排在后面的样式表才会影响层叠顺序；modulepreload、script、meta 等节点不值得把 2000 多行样式表挪到末尾
+  function hasStylesheetAfter(styleEl) {
+    for (let el = styleEl.nextElementSibling; el; el = el.nextElementSibling) {
+      if (el.tagName === 'STYLE' || (el.tagName === 'LINK' && /\bstylesheet\b/i.test(el.getAttribute('rel') || ''))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function ensureStyleInjected() {
     const root = document.documentElement;
     if (!root) {
@@ -866,7 +892,7 @@
       (document.head || root).appendChild(styleEl);
     } else if (document.head && styleEl.parentNode !== document.head) {
       document.head.appendChild(styleEl);
-    } else if (document.head && document.head.lastElementChild !== styleEl) {
+    } else if (document.head && hasStylesheetAfter(styleEl)) {
       document.head.appendChild(styleEl);
     }
 
@@ -913,7 +939,8 @@
       });
 
       headObserver = new MutationObserver(() => {
-        if (document.head && document.head.lastElementChild?.id !== STYLE_ELEMENT_ID) {
+        const styleEl = document.getElementById(STYLE_ELEMENT_ID);
+        if (!styleEl || styleEl.parentNode !== document.head || hasStylesheetAfter(styleEl)) {
           scheduleSync();
         }
       });

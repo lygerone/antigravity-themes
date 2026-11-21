@@ -1,6 +1,6 @@
 {
   "name": "antigravity-themes",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "面向 macOS ARM64 Antigravity 桌面端的双色皮肤库、布局精修与零依赖实时切换工具",
   "type": "module",
   "license": "MIT",

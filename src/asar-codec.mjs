@@ -9,26 +9,55 @@ function sha256Hex(buffer) {
 }
 
 /**
- * 计算单个文件在 ASAR Header 中使用的完整性校验元数据
+ * 计算单个文件在 ASAR Header 中使用的完整性校验元数据（与 @electron/asar 一致：
+ * 按 blockSize 切块，整数倍时不补空块，空文件只有一个空数据哈希）
  * @param {Buffer} fileBuffer
+ * @param {number} blockSize
  */
-export function computeFileIntegrity(fileBuffer) {
+export function computeFileIntegrity(fileBuffer, blockSize = ASAR_BLOCK_SIZE) {
   const hash = sha256Hex(fileBuffer);
   const blocks = [];
   if (fileBuffer.length === 0) {
     blocks.push(hash);
   } else {
-    for (let offset = 0; offset < fileBuffer.length; offset += ASAR_BLOCK_SIZE) {
-      const slice = fileBuffer.subarray(offset, Math.min(offset + ASAR_BLOCK_SIZE, fileBuffer.length));
+    for (let offset = 0; offset < fileBuffer.length; offset += blockSize) {
+      const slice = fileBuffer.subarray(offset, Math.min(offset + blockSize, fileBuffer.length));
       blocks.push(sha256Hex(slice));
     }
   }
   return {
     algorithm: 'SHA256',
     hash,
-    blockSize: ASAR_BLOCK_SIZE,
+    blockSize,
     blocks,
   };
+}
+
+function verifyFileIntegrity(content, integrity, entryPath) {
+  const { algorithm, hash, blockSize, blocks } = integrity;
+  if (algorithm !== 'SHA256') {
+    throw new Error(`Unsupported ASAR integrity algorithm at "${entryPath}": ${algorithm}`);
+  }
+  if (!Number.isInteger(blockSize) || blockSize <= 0 || !Array.isArray(blocks)) {
+    throw new Error(
+      `Malformed ASAR integrity metadata at "${entryPath}": blockSize=${blockSize}, blocks=${Array.isArray(blocks) ? `${blocks.length} entries` : typeof blocks}`
+    );
+  }
+  const actual = computeFileIntegrity(content, blockSize);
+  if (actual.hash !== hash) {
+    throw new Error(`ASAR file integrity mismatch at "${entryPath}": expected=${hash}, actual=${actual.hash}`);
+  }
+  if (actual.blocks.length !== blocks.length) {
+    throw new Error(
+      `ASAR block count mismatch at "${entryPath}": expected=${blocks.length}, actual=${actual.blocks.length} (blockSize=${blockSize})`
+    );
+  }
+  const mismatchIndex = actual.blocks.findIndex((blockHash, index) => blockHash !== blocks[index]);
+  if (mismatchIndex !== -1) {
+    throw new Error(
+      `ASAR block integrity mismatch at "${entryPath}" block #${mismatchIndex}: expected=${blocks[mismatchIndex]}, actual=${actual.blocks[mismatchIndex]}`
+    );
+  }
 }
 
 /**
@@ -172,14 +201,9 @@ export function verifyAsarBuffer(archiveBuffer, expectedHeaderSha256) {
     }
     const content = readAsarEntryBuffer(archive, currentPath);
     if (node.integrity) {
-      const actual = computeFileIntegrity(content);
-      if (actual.hash !== node.integrity.hash) {
-        throw new Error(
-          `ASAR file integrity mismatch at "${currentPath}": expected=${node.integrity.hash}, actual=${actual.hash}`
-        );
-      }
+      verifyFileIntegrity(content, node.integrity, currentPath);
+      verifiedFileCount += 1;
     }
-    verifiedFileCount += 1;
   }
 
   walkNode(archive.header, '');

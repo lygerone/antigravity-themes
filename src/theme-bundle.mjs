@@ -5,12 +5,22 @@ import { fileURLToPath } from 'node:url';
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CURRENT_DIR, '..');
 const STUDIO_THEME_DIR = path.join(REPO_ROOT, 'themes', 'studio');
+const PACKAGE_JSON_PATH = path.join(REPO_ROOT, 'package.json');
 const CSS_PLACEHOLDER = '__AT_THEME_CSS__';
 const PRESET_PLACEHOLDER = '__AT_THEME_PRESET__';
 const BACKDROP_PLACEHOLDER = '__AT_THEME_BACKDROP__';
 
+// 版本号只在 package.json 维护；补丁标记解析只认 x.y.z，预发布后缀会让 status 读不出版本
+function readPackageVersion() {
+  const { version } = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf8'));
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error(`Invalid "version" in ${PACKAGE_JSON_PATH}: expected x.y.z, got ${JSON.stringify(version)}`);
+  }
+  return version;
+}
+
 export const THEME_NAME = 'studio';
-export const THEME_VERSION = '1.0.2';
+export const THEME_VERSION = readPackageVersion();
 export const DEFAULT_PRESET = 'iris';
 export const DEFAULT_BACKDROP = 'starlight';
 

@@ -14,6 +14,7 @@ import {
   ensureInitialBackup,
   getVersionBackupDir,
   inspectMacApp,
+  readPlistAsarHash,
   replaceAsarAtomically,
   resignMacAppAdhoc,
   updatePlistAsarIntegrity,
@@ -163,7 +164,12 @@ function handleStatus(options) {
     `细分挂载:   preload=${patchState.preloadPatched ? '已注入' : '未注入'}, sidecar=${patchState.sidecarPatched ? '已注入' : '未注入'}, 窗口底色=${patchState.utilsColorsPatched ? '已对齐' : '默认'}`
   );
   console.log(`共存汉化:   ${patchState.hasChineseLocalization ? '检测到汉化补丁（增量模式会完整保留）' : '无'}`);
-  console.log(`独立备份:   ${hasBackup ? backupDir : '尚未创建（首次 apply 自动生成）'}`);
+  const backupText = hasBackup
+    ? backupDir
+    : patchState.hasThemePatch
+      ? '无（当前 app.asar 已含皮肤补丁，需先 restore 再 apply 才能生成快照）'
+      : '尚未创建（首次 apply 自动生成）';
+  console.log(`独立备份:   ${backupText}`);
   console.log(`ASAR 哈希:  ${hashMatches ? '与 Info.plist 一致' : '与 Info.plist 不一致'}`);
   console.log(`代码签名:   ${appInfo.codesignValid ? '有效' : `异常 (${appInfo.codesignDetail})`}`);
 }
@@ -178,9 +184,20 @@ function handleVerify(options) {
   }
 
   console.log('校验通过:');
-  console.log(`  - ASAR 文件完整性: ${verified.verifiedFileCount} 个内联文件分块 SHA-256 全部通过`);
+  console.log(`  - ASAR 文件完整性: ${verified.verifiedFileCount} 个内联文件的整文件与分块 SHA-256 全部通过`);
   console.log(`  - ElectronAsarIntegrity: ${verified.headerSha256}`);
   console.log('  - macOS codesign: --verify --deep --strict 通过');
+}
+
+/**
+ * 写盘后复验：app.asar 完整性与 Info.plist 哈希一致、codesign 有效
+ */
+function verifyInstalledApp(appPath) {
+  const postInfo = inspectMacApp(appPath);
+  verifyAsarBuffer(fs.readFileSync(postInfo.asarPath), postInfo.plistAsarHash ?? undefined);
+  if (!postInfo.codesignValid) {
+    throw new Error(`Post-write codesign check failed: ${postInfo.codesignDetail}`);
+  }
 }
 
 /**
@@ -193,11 +210,7 @@ function installAsarWithRollback(appInfo, originalAsarBuffer, nextAsar) {
   try {
     const plistUpdated = updatePlistAsarIntegrity(appInfo.infoPlistPath, nextAsar.headerSha256);
     resignMacAppAdhoc(appInfo.appPath);
-    const postInfo = inspectMacApp(appInfo.appPath);
-    verifyAsarBuffer(fs.readFileSync(postInfo.asarPath), postInfo.plistAsarHash ?? undefined);
-    if (!postInfo.codesignValid) {
-      throw new Error(`Post-write codesign check failed: ${postInfo.codesignDetail}`);
-    }
+    verifyInstalledApp(appInfo.appPath);
     return plistUpdated;
   } catch (installErr) {
     try {
@@ -270,7 +283,9 @@ function handleApply(options) {
     );
   }
 
-  const backup = ensureInitialBackup(appInfo);
+  const backup = ensureInitialBackup(appInfo, {
+    currentAsarHasThemePatch: inspectPatchState(sources).hasThemePatch,
+  });
   console.log(`独立备份: ${backup.created ? '已新建' : '已存在'} -> ${backup.backupDir}`);
 
   const plistUpdated = installAsarWithRollback(appInfo, archive.buffer, rebuilt);
@@ -298,16 +313,23 @@ function handleRestore(options) {
     }
     const backupAsarBuf = fs.readFileSync(backupAsarPath);
     const verified = verifyAsarBuffer(backupAsarBuf);
+    const backupPlistAsarHash = readPlistAsarHash(backupPlistPath);
+    if (backupPlistAsarHash && backupPlistAsarHash !== verified.headerSha256) {
+      throw new Error(
+        `Backup snapshot in "${backupDir}" is inconsistent: its app.asar header SHA-256 is ${verified.headerSha256}, but its Info.plist expects ${backupPlistAsarHash}`
+      );
+    }
 
     if (options.dryRun) {
-      console.log(`[dry-run] 将从快照还原: ${backupDir} (SHA-256: ${verified.headerSha256})`);
+      console.log(`[dry-run] 快照校验通过，将从快照还原: ${backupDir} (SHA-256: ${verified.headerSha256})`);
       return;
     }
 
     replaceAsarAtomically(appInfo.asarPath, backupAsarBuf);
     fs.copyFileSync(backupPlistPath, appInfo.infoPlistPath);
     resignMacAppAdhoc(appInfo.appPath);
-    console.log(`已从独立备份快照完整还原 (${backupDir}) 并完成重签。`);
+    verifyInstalledApp(appInfo.appPath);
+    console.log(`已从独立备份快照完整还原 (${backupDir})，重签与复验通过。`);
     return;
   }
 
@@ -315,7 +337,7 @@ function handleRestore(options) {
   const sources = readTargetSources(archive);
   const state = inspectPatchState(sources);
 
-  if (!state.installed && !state.sidecarPatched && !state.utilsColorsPatched && !state.splashColorsPatched) {
+  if (!state.hasThemePatch) {
     console.log('当前应用未检测到 antigravity-themes 皮肤补丁，无需卸载。');
     return;
   }

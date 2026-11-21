@@ -1,5 +1,5 @@
 /*
- * antigravity-themes (v1.0.2): 三栏布局重构、微交互、无障碍焦点、次级表面统一与内置皮肤切换器
+ * antigravity-themes: 三栏布局重构、微交互、无障碍焦点、次级表面统一与内置皮肤切换器
  */
 
 /* 主题切换单帧瞬时同步保护，避免各区域过渡时长不一致造成割裂闪烁 */
@@ -432,7 +432,7 @@ html[data-at-skin="studio"] body :is(.agy-sidebar-row, [data-testid="conversatio
   padding-bottom: calc(var(--at-row-pad-y) + 2px) !important;
 }
 
-html[data-at-skin="studio"] body :has(> [data-testid="settings-button"]) {
+html[data-at-skin="studio"] body [data-at-sidebar-footer] {
   border-top: 1px solid color-mix(in srgb, var(--at-sidebar-border) 88%, transparent);
   padding-top: 6px;
 }

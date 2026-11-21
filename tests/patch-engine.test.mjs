@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import {
   inspectPatchState,
@@ -13,6 +14,8 @@ import {
   DEFAULT_BACKDROP,
   DEFAULT_PRESET,
   SUPPORTED_PRESETS,
+  THEME_PRESETS,
+  THEME_VERSION,
   buildThemeRuntimeScript,
   loadThemeStylesheet,
   resolveStageBackdrop,
@@ -70,7 +73,25 @@ function contrastRatio(hexA, hexB) {
 function extractCssVar(block, name) {
   const match = block.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`));
   assert.ok(match, `Missing hex variable ${name} in CSS block`);
-  return match[1];
+  return match[1].toLowerCase();
+}
+
+function extractPresetBlock(css, preset, mode) {
+  const selector =
+    mode === 'light'
+      ? `html[data-at-skin="studio"][data-at-preset="${preset}"] {`
+      : `html[data-at-skin="studio"][data-at-preset="${preset}"][data-at-mode="dark"] {`;
+  const startIdx = css.indexOf(selector);
+  assert.notEqual(startIdx, -1, `Missing selector for ${preset}/${mode}`);
+  return css.slice(startIdx, css.indexOf('}', startIdx));
+}
+
+// runtime.js 里切换器预览卡用的配色表（纯对象字面量，可直接求值）
+function readRuntimeThemeCatalog() {
+  const runtimeSource = fs.readFileSync(new URL('../themes/studio/runtime.js', import.meta.url), 'utf8');
+  const match = runtimeSource.match(/const THEME_CATALOG = (\[[\s\S]*?\n {2}\]);/);
+  assert.ok(match, 'THEME_CATALOG literal not found in themes/studio/runtime.js');
+  return new Function(`return ${match[1]};`)();
 }
 
 test('CSS 包含全部 6 套双色主题、4 级墨阶、半透明状态层与浏览器镂空保护', () => {
@@ -97,14 +118,7 @@ test('全部 12 套深浅配色的 4 级文字层级严格满足 WCAG 对比度�
   const css = loadThemeStylesheet();
   for (const preset of EXPECTED_PRESETS) {
     for (const mode of ['light', 'dark']) {
-      const selector =
-        mode === 'light'
-          ? `html[data-at-skin="studio"][data-at-preset="${preset}"] {`
-          : `html[data-at-skin="studio"][data-at-preset="${preset}"][data-at-mode="dark"] {`;
-      const startIdx = css.indexOf(selector);
-      assert.notEqual(startIdx, -1, `Missing selector for ${preset}/${mode}`);
-      const endIdx = css.indexOf('}', startIdx);
-      const block = css.slice(startIdx, endIdx);
+      const block = extractPresetBlock(css, preset, mode);
 
       const canvas = extractCssVar(block, '--at-canvas');
       const text = extractCssVar(block, '--at-text');
@@ -140,6 +154,40 @@ test('全部 12 套深浅配色的 4 级文字层级严格满足 WCAG 对比度�
   }
 });
 
+test('三处配色定义保持一致：tokens.css、切换器预览色（runtime.js）、原生窗口底色（theme-bundle）', () => {
+  const css = loadThemeStylesheet();
+  const catalog = readRuntimeThemeCatalog();
+  assert.deepEqual(
+    catalog.map((theme) => theme.id),
+    EXPECTED_PRESETS
+  );
+
+  for (const preset of THEME_PRESETS) {
+    const preview = catalog.find((theme) => theme.id === preset.id);
+    const native = preset.nativeColors;
+    for (const mode of ['light', 'dark']) {
+      const block = extractPresetBlock(css, preset.id, mode);
+      const isLight = mode === 'light';
+      const expectations = [
+        ['原生底色', isLight ? native.lightBg : native.darkBg, '--at-canvas'],
+        ['原生前景', isLight ? native.lightFg : native.darkFg, '--at-text'],
+        ['原生副文字', isLight ? native.lightSub : native.darkSub, '--at-text-muted'],
+        ['预览 canvas', preview[mode].canvas, '--at-canvas'],
+        ['预览 sidebar', preview[mode].sidebar, '--at-sidebar'],
+        ['预览 composer', preview[mode].composer, '--at-composer-bg'],
+        ['预览 accent', preview[mode].accent, '--at-accent'],
+      ];
+      for (const [label, actual, cssVar] of expectations) {
+        assert.equal(
+          actual.toLowerCase(),
+          extractCssVar(block, cssVar),
+          `${preset.id}/${mode} ${label} 与 tokens.css 的 ${cssVar} 不一致`
+        );
+      }
+    }
+  }
+});
+
 test('预设与顶栏纹理校验：支持全部 6 套主题与 3 种顶栏模式，非法值 Fail Fast', () => {
   assert.equal(DEFAULT_PRESET, 'iris');
   assert.equal(DEFAULT_BACKDROP, 'starlight');
@@ -165,6 +213,14 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
   const winListeners = new Map();
   const rootAttrs = new Map();
   const rootStyleProps = new Map();
+  const bodyStyleProps = new Map();
+  const settingsContainerAttrs = new Map();
+  const fakeSettingsButton = {
+    parentElement: {
+      hasAttribute: (k) => settingsContainerAttrs.has(k),
+      setAttribute: (k, v) => settingsContainerAttrs.set(k, String(v)),
+    },
+  };
   const headChildren = [];
   const bodyChildren = [];
   const sidebarChildren = [];
@@ -257,7 +313,7 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
       if (sel.includes('sidebar-split')) return fakeSidebarPane;
       return null;
     },
-    querySelectorAll: () => [],
+    querySelectorAll: (sel) => (sel === '[data-testid="settings-button"]' ? [fakeSettingsButton] : []),
     createElement: makeElement,
   };
 
@@ -284,6 +340,7 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
         else bodyClassSet.delete(c);
       },
     },
+    style: { setProperty: (k, v) => bodyStyleProps.set(k, v) },
     appendChild(el) {
       el.parentNode = fakeDocument.body;
       bodyChildren.push(el);
@@ -301,7 +358,9 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
   assert.equal(bodyClassSet.has('theme-light'), true);
   assert.equal(bodyClassSet.has('dark'), false);
   assert.equal(rootAttrs.get('data-at-sidebar-open'), 'true');
-  assert.equal(rootStyleProps.get('--at-sidebar-width'), '268px');
+  assert.equal(bodyStyleProps.get('--at-sidebar-width'), '268px');
+  assert.equal(rootStyleProps.has('--at-sidebar-width'), false, '写在 <html> style 上会触发 attrObserver，拖动侧栏时每帧重跑 boot');
+  assert.equal(settingsContainerAttrs.get('data-at-sidebar-footer'), '', '设置按钮的父容器应被打上底栏标记');
   assert.equal(sidebarChildren.length, 1);
   assert.ok(sidebarChildren[0].innerHTML.includes('data-stage-art="starlight"'));
   assert.ok(bodyChildren.some((el) => el.id === 'at-theme-switcher-fab'));
@@ -368,8 +427,18 @@ test('preload 与 utils/splash 支持任意预设幂等切换、共存汉化且�
   assert.equal(state.themeId, 'studio');
   assert.equal(state.themePreset, 'slate');
   assert.equal(state.stageBackdrop, 'blueprint');
-  assert.equal(state.themeVersion, '1.0.2');
+  assert.equal(state.themeVersion, THEME_VERSION);
+  const packageVersion = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  assert.equal(THEME_VERSION, packageVersion, 'THEME_VERSION 必须来自 package.json');
   assert.equal(state.hasChineseLocalization, true);
+  assert.equal(state.hasThemePatch, true);
+
+  const cleanState = inspectPatchState({
+    preloadSource: SAMPLE_PRELOAD_WITH_ZH,
+    utilsSource: SAMPLE_UTILS_WITH_ZH,
+    splashSource: SAMPLE_SPLASH,
+  });
+  assert.equal(cleanState.hasThemePatch, false, '只有汉化等共存补丁时不算已打皮肤补丁');
 });
 
 const SIDECAR_REQUEST = { type: 'antigravity-themes:request-choices' };
@@ -389,9 +458,16 @@ function createHeadlessRuntimeEnv({ storage = new Map(), sidecarFrames = [] } = 
     get lastElementChild() {
       return headChildren.at(-1) ?? null;
     },
+    // 与真实 DOM 一致：appendChild 已在 head 里的节点等于把它移到末尾
     appendChild(el) {
+      const existingIdx = headChildren.indexOf(el);
+      if (existingIdx !== -1) headChildren.splice(existingIdx, 1);
       headChildren.push(el);
       el.parentNode = fakeHead;
+      Object.defineProperty(el, 'nextElementSibling', {
+        configurable: true,
+        get: () => headChildren[headChildren.indexOf(el) + 1] ?? null,
+      });
       return el;
     },
   };
@@ -413,12 +489,36 @@ function createHeadlessRuntimeEnv({ storage = new Map(), sidecarFrames = [] } = 
     addEventListener: (name, fn) => windowListeners.set(name, [...(windowListeners.get(name) ?? []), fn]),
   };
   fakeWindow.parent = fakeWindow;
-  return { fakeDocument, fakeWindow, rootAttrs, windowListeners };
+  return { fakeDocument, fakeWindow, rootAttrs, windowListeners, headChildren };
 }
 
 function runRuntimeIn(env, runtimeScript) {
   new Function('document', 'window', 'setTimeout', runtimeScript)(env.fakeDocument, env.fakeWindow, () => 0);
 }
+
+test('皮肤样式表只在后面出现新样式表时才挪到 head 末尾，modulepreload 等节点不触发重排', () => {
+  const runtimeScript = buildThemeRuntimeScript('iris', 'starlight');
+  const env = createHeadlessRuntimeEnv();
+  runRuntimeIn(env, runtimeScript);
+  const [onLoad] = env.windowListeners.get('load');
+  const fakeHeadNode = (tagName, rel = null) => ({ tagName, getAttribute: (k) => (k === 'rel' ? rel : null) });
+  const skinStyleIndex = () => env.headChildren.findIndex((el) => el.id === 'antigravity-themes-style');
+
+  assert.equal(skinStyleIndex(), 0);
+
+  env.fakeDocument.head.appendChild(fakeHeadNode('LINK', 'modulepreload'));
+  env.fakeDocument.head.appendChild(fakeHeadNode('SCRIPT'));
+  onLoad();
+  assert.equal(skinStyleIndex(), 0, 'modulepreload / script 不影响层叠顺序，不应重排');
+
+  env.fakeDocument.head.appendChild(fakeHeadNode('LINK', 'stylesheet'));
+  onLoad();
+  assert.equal(skinStyleIndex(), env.headChildren.length - 1, '后面出现样式表时必须挪到末尾');
+
+  env.fakeDocument.head.appendChild(fakeHeadNode('STYLE'));
+  onLoad();
+  assert.equal(skinStyleIndex(), env.headChildren.length - 1);
+});
 
 test('runtime 在同一窗口被重复注入时只初始化一次（sidecar 每次加载会注入两次）', () => {
   const runtimeScript = buildThemeRuntimeScript('iris', 'starlight');

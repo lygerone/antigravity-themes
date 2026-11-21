@@ -296,6 +296,7 @@ export function inspectPatchState({ preloadSource, utilsSource, splashSource }) 
     sidecarPatched,
     utilsColorsPatched,
     splashColorsPatched,
+    hasThemePatch: preloadPatched || sidecarPatched || utilsColorsPatched || splashColorsPatched,
     hasChineseLocalization,
   };
 }

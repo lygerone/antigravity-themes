@@ -62,12 +62,7 @@ export function inspectMacApp(appPath = DEFAULT_APP_PATH) {
     infoPlistPath,
   ]).stdout;
 
-  const integrityRes = runCommand(
-    '/usr/libexec/PlistBuddy',
-    ['-c', 'Print :ElectronAsarIntegrity:Resources/app.asar:hash', infoPlistPath],
-    { allowFailure: true }
-  );
-  const plistAsarHash = integrityRes.ok ? integrityRes.stdout : null;
+  const plistAsarHash = readPlistAsarHash(infoPlistPath);
 
   const archRes = fs.existsSync(executablePath)
     ? runCommand('/usr/bin/file', [executablePath], { allowFailure: true })
@@ -102,6 +97,18 @@ export function inspectMacApp(appPath = DEFAULT_APP_PATH) {
 }
 
 /**
+ * 读取 Info.plist 中 ElectronAsarIntegrity 记录的 app.asar Header SHA-256；未启用该校验时返回 null
+ */
+export function readPlistAsarHash(infoPlistPath) {
+  const res = runCommand(
+    '/usr/libexec/PlistBuddy',
+    ['-c', 'Print :ElectronAsarIntegrity:Resources/app.asar:hash', infoPlistPath],
+    { allowFailure: true }
+  );
+  return res.ok ? res.stdout : null;
+}
+
+/**
  * 获取当前宿主版本对应的独立备份目录路径（不触碰应用内的 app.asar.bak）
  */
 export function getVersionBackupDir(bundleVersion, backupRoot = DEFAULT_BACKUP_ROOT) {
@@ -110,9 +117,13 @@ export function getVersionBackupDir(bundleVersion, backupRoot = DEFAULT_BACKUP_R
 }
 
 /**
- * 首次打补丁前保存当前 app.asar 与 Info.plist 的独立快照
+ * 首次打补丁前保存当前 app.asar 与 Info.plist 的独立快照。
+ * 快照必须是打皮肤补丁之前的状态：当前 app.asar 已含皮肤补丁且还没有快照时拒绝创建。
  */
-export function ensureInitialBackup(appInfo, backupRoot = DEFAULT_BACKUP_ROOT) {
+export function ensureInitialBackup(appInfo, { currentAsarHasThemePatch, backupRoot = DEFAULT_BACKUP_ROOT }) {
+  if (typeof currentAsarHasThemePatch !== 'boolean') {
+    throw new Error(`ensureInitialBackup requires a boolean currentAsarHasThemePatch, got ${currentAsarHasThemePatch}`);
+  }
   const backupDir = getVersionBackupDir(appInfo.bundleVersion, backupRoot);
   const backupAsarPath = path.join(backupDir, 'app.asar');
   const backupPlistPath = path.join(backupDir, 'Info.plist');
@@ -120,6 +131,11 @@ export function ensureInitialBackup(appInfo, backupRoot = DEFAULT_BACKUP_ROOT) {
 
   if (fs.existsSync(backupAsarPath) && fs.existsSync(backupPlistPath)) {
     return { created: false, backupDir, backupAsarPath, backupPlistPath };
+  }
+  if (currentAsarHasThemePatch) {
+    throw new Error(
+      `Refusing to create the initial backup in "${backupDir}": the current app.asar already contains antigravity-themes patches, so it is not a pre-patch snapshot. Run "restore" first to strip them, then run "apply" again.`
+    );
   }
 
   fs.mkdirSync(backupDir, { recursive: true });
@@ -169,13 +185,7 @@ export function replaceAsarAtomically(asarPath, nextAsarBuffer) {
  * 更新 Info.plist 中的 ElectronAsarIntegrity SHA-256 哈希
  */
 export function updatePlistAsarIntegrity(infoPlistPath, newHeaderSha256) {
-  const existsRes = runCommand(
-    '/usr/libexec/PlistBuddy',
-    ['-c', 'Print :ElectronAsarIntegrity:Resources/app.asar:hash', infoPlistPath],
-    { allowFailure: true }
-  );
-
-  if (!existsRes.ok) {
+  if (readPlistAsarHash(infoPlistPath) === null) {
     return false;
   }
 

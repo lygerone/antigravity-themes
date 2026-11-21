@@ -71,6 +71,13 @@ npx antigravity-themes restore
 npx antigravity-themes restore --from-backup
 ```
 
+### Code Signing and Auto-Update
+
+`apply` and `restore` re-sign `Antigravity.app` with a macOS ad-hoc signature, which replaces Google's official signature. `restore` (including `--from-backup`) only restores `app.asar` and `Info.plist`; it cannot bring the official signature back. As a result:
+
+* The in-app auto-updater checks that a new version matches the current app's signature, so **auto-updates may fail** after patching. If that happens, download the latest version from the official site, reinstall it, and run `npx antigravity-themes apply` again.
+* The only way to fully restore the official signature is to reinstall the official app.
+
 ### After Upgrading Antigravity
 
 Upgrading the Antigravity desktop app replaces `/Applications/Antigravity.app`, so theme patches must be re-applied. Your selected theme, Light/Dark mode, backdrop, and density are stored in the app's user-data `localStorage` and remain intact — simply quit Antigravity and run `npx antigravity-themes apply` again after updating.

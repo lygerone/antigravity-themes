@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
+  ASAR_BLOCK_SIZE,
   computeFileIntegrity,
   parseAsarBuffer,
   readAsarArchive,
@@ -17,7 +18,7 @@ function buildFixtureAsar(fileEntries) {
   let offset = 0;
 
   for (const [relativePath, content] of Object.entries(fileEntries)) {
-    const buf = Buffer.from(content, 'utf8');
+    const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8');
     const parts = relativePath.split('/');
     let cursor = header;
     for (let i = 0; i < parts.length - 1; i += 1) {
@@ -90,6 +91,45 @@ test('篡改 ASAR 载荷字节后校验必须失败', () => {
   corrupted[parsed.dataOffset] ^= 0xff;
 
   assert.throws(() => verifyAsarBuffer(corrupted, parsed.headerSha256), /integrity mismatch/);
+});
+
+test('分块规则与 @electron/asar 一致：整数倍不补空块，空文件只有一个空数据哈希', () => {
+  const emptyIntegrity = computeFileIntegrity(Buffer.alloc(0));
+  assert.deepEqual(emptyIntegrity.blocks, ['e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855']);
+  assert.equal(computeFileIntegrity(Buffer.alloc(ASAR_BLOCK_SIZE)).blocks.length, 1);
+  assert.equal(computeFileIntegrity(Buffer.alloc(ASAR_BLOCK_SIZE + 1)).blocks.length, 2);
+});
+
+test('verify 逐块比对：分块哈希、块数或校验元数据被篡改都必须失败', () => {
+  const fixture = buildFixtureAsar({
+    'big.bin': Buffer.alloc(ASAR_BLOCK_SIZE + 10, 7),
+    'dist/preload.js': 'ok\n',
+  });
+  assert.equal(verifyAsarBuffer(fixture).verifiedFileCount, 2);
+
+  // rebuildAsarBuffer 会原样沿用未覆盖文件的 integrity，借它把篡改后的元数据写回归档
+  const rebuildWith = (mutate) => {
+    const archive = parseAsarBuffer(fixture);
+    mutate(archive.header.files['big.bin'].integrity);
+    return rebuildAsarBuffer(archive, new Map()).buffer;
+  };
+
+  assert.throws(
+    () => verifyAsarBuffer(rebuildWith((integrity) => (integrity.blocks[1] = '0'.repeat(64)))),
+    /block integrity mismatch at "big\.bin" block #1/
+  );
+  assert.throws(
+    () => verifyAsarBuffer(rebuildWith((integrity) => integrity.blocks.pop())),
+    /block count mismatch at "big\.bin": expected=1, actual=2/
+  );
+  assert.throws(
+    () => verifyAsarBuffer(rebuildWith((integrity) => (integrity.blockSize = 0))),
+    /Malformed ASAR integrity metadata at "big\.bin": blockSize=0/
+  );
+  assert.throws(
+    () => verifyAsarBuffer(rebuildWith((integrity) => (integrity.algorithm = 'MD5'))),
+    /Unsupported ASAR integrity algorithm at "big\.bin": MD5/
+  );
 });
 
 test('若本机存在 Antigravity.app，Header SHA-256 应与 Info.plist 完全吻合（只读）', {
