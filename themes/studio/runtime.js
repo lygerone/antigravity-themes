@@ -2,9 +2,11 @@
 // 由 theme-bundle.mjs 内联样式表、默认主题预设与默认顶栏纹理后注入 preload / sidecar
 
 (() => {
-  if (typeof document === 'undefined') {
+  // sidecar iframe 每次加载会被主进程注入两次（did-frame-navigate + did-frame-finish-load），只保留第一份
+  if (typeof document === 'undefined' || window.__antigravityThemesLoaded) {
     return;
   }
+  window.__antigravityThemesLoaded = true;
 
   const SKIN_ID = 'studio';
   const DEFAULT_SKIN_PRESET = __AT_THEME_PRESET__;
@@ -16,6 +18,9 @@
   const STORAGE_BACKDROP_KEY = 'antigravity-themes:backdrop';
   const STORAGE_DENSITY_KEY = 'antigravity-themes:density';
   const STORAGE_MODE_KEY = 'antigravity-themes:mode';
+  const SIDECAR_IFRAME_SELECTOR = 'iframe[data-testid="sidecar-iframe"]';
+  const SIDECAR_REQUEST_MESSAGE = 'antigravity-themes:request-choices';
+  const SIDECAR_CHOICES_MESSAGE = 'antigravity-themes:choices';
   const SKIN_CSS = __AT_THEME_CSS__;
 
   const THEME_CATALOG = [
@@ -201,8 +206,14 @@
   let nativeHostMode = null;
   let hasAppliedModeOverride = false;
   let isSyncingModeClasses = false;
+  // sidecar iframe 是 plugin:// 源，读不到主窗口的 localStorage，由主窗口经 postMessage 下发选择
+  let choicesFromHost = null;
 
-  function readSavedChoice(key, validSet, fallback) {
+  function readActiveChoice(key, validSet, fallback) {
+    const hostChoice = choicesFromHost?.[key];
+    if (validSet.has(hostChoice)) {
+      return hostChoice;
+    }
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const stored = window.localStorage.getItem(key);
@@ -227,19 +238,61 @@
   }
 
   function getActivePreset() {
-    return readSavedChoice(STORAGE_PRESET_KEY, VALID_PRESET_IDS, DEFAULT_SKIN_PRESET);
+    return readActiveChoice(STORAGE_PRESET_KEY, VALID_PRESET_IDS, DEFAULT_SKIN_PRESET);
   }
 
   function getActiveBackdrop() {
-    return readSavedChoice(STORAGE_BACKDROP_KEY, VALID_BACKDROP_IDS, DEFAULT_STAGE_BACKDROP);
+    return readActiveChoice(STORAGE_BACKDROP_KEY, VALID_BACKDROP_IDS, DEFAULT_STAGE_BACKDROP);
   }
 
   function getActiveDensity() {
-    return readSavedChoice(STORAGE_DENSITY_KEY, VALID_DENSITY_IDS, DEFAULT_DENSITY);
+    return readActiveChoice(STORAGE_DENSITY_KEY, VALID_DENSITY_IDS, DEFAULT_DENSITY);
   }
 
   function getActiveModePreference() {
-    return readSavedChoice(STORAGE_MODE_KEY, VALID_MODE_IDS, 'auto');
+    return readActiveChoice(STORAGE_MODE_KEY, VALID_MODE_IDS, 'auto');
+  }
+
+  function postChoicesToSidecars() {
+    const sidecarFrames = document.querySelectorAll(SIDECAR_IFRAME_SELECTOR);
+    if (sidecarFrames.length === 0) {
+      return;
+    }
+    const message = {
+      type: SIDECAR_CHOICES_MESSAGE,
+      choices: {
+        [STORAGE_PRESET_KEY]: getActivePreset(),
+        [STORAGE_BACKDROP_KEY]: getActiveBackdrop(),
+        [STORAGE_DENSITY_KEY]: getActiveDensity(),
+        // 下发实际生效的明暗而不是 auto：sidecar 探测不到宿主自身的明暗设置
+        [STORAGE_MODE_KEY]: detectSkinMode(),
+      },
+    };
+    for (const frameEl of sidecarFrames) {
+      // 载荷只有主题 id；sidecar 源是动态的 plugin://<authority>，故不限定 targetOrigin
+      frameEl.contentWindow?.postMessage(message, '*');
+    }
+  }
+
+  function applyChoicesFromHost(event) {
+    if (window.parent === window || event.source !== window.parent) {
+      return;
+    }
+    const { choices } = event.data;
+    if (!choices || typeof choices !== 'object') {
+      throw new Error(`[antigravity-themes] 主窗口下发的 choices 不是对象: ${JSON.stringify(choices)}`);
+    }
+    choicesFromHost = choices;
+    runWithoutTransitions(ensureStyleInjected);
+  }
+
+  function routeThemeMessage(event) {
+    const messageType = event.data?.type;
+    if (messageType === SIDECAR_REQUEST_MESSAGE) {
+      postChoicesToSidecars();
+    } else if (messageType === SIDECAR_CHOICES_MESSAGE) {
+      applyChoicesFromHost(event);
+    }
   }
 
   function runWithoutTransitions(action) {
@@ -770,6 +823,11 @@
     const backdrop = getActiveBackdrop();
     const density = getActiveDensity();
     const modeChanged = root.getAttribute('data-at-mode') !== mode;
+    const choicesChanged =
+      modeChanged ||
+      root.getAttribute('data-at-preset') !== preset ||
+      root.getAttribute('data-at-backdrop') !== backdrop ||
+      root.getAttribute('data-at-density') !== density;
 
     syncHostModeClasses(mode, modePreference);
 
@@ -805,6 +863,9 @@
     ensureThemePickerUi();
     if (modeChanged) {
       refreshPickerSelection();
+    }
+    if (choicesChanged) {
+      postChoicesToSidecars();
     }
     return true;
   }
@@ -904,6 +965,10 @@
   }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('load', boot);
+    window.addEventListener('message', routeThemeMessage);
+  }
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: SIDECAR_REQUEST_MESSAGE }, '*');
   }
   for (const delayMs of [0, 50, 200, 800, 2500]) {
     setTimeout(boot, delayMs);

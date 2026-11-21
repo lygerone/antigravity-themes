@@ -183,16 +183,46 @@ function handleVerify(options) {
   console.log('  - macOS codesign: --verify --deep --strict 通过');
 }
 
+/**
+ * 写入新 app.asar，同步 Info.plist 哈希、Ad-hoc 重签并复验。
+ * 任一步失败都把 app.asar 与 Info.plist 回滚到写入前的状态再抛错，避免留下哈希或签名对不上的半成品。
+ * @returns {boolean} Info.plist 是否启用并更新了 ElectronAsarIntegrity
+ */
+function installAsarWithRollback(appInfo, originalAsarBuffer, nextAsar) {
+  replaceAsarAtomically(appInfo.asarPath, nextAsar.buffer);
+  try {
+    const plistUpdated = updatePlistAsarIntegrity(appInfo.infoPlistPath, nextAsar.headerSha256);
+    resignMacAppAdhoc(appInfo.appPath);
+    const postInfo = inspectMacApp(appInfo.appPath);
+    verifyAsarBuffer(fs.readFileSync(postInfo.asarPath), postInfo.plistAsarHash ?? undefined);
+    if (!postInfo.codesignValid) {
+      throw new Error(`Post-write codesign check failed: ${postInfo.codesignDetail}`);
+    }
+    return plistUpdated;
+  } catch (installErr) {
+    try {
+      replaceAsarAtomically(appInfo.asarPath, originalAsarBuffer);
+      if (appInfo.plistAsarHash) {
+        updatePlistAsarIntegrity(appInfo.infoPlistPath, appInfo.plistAsarHash);
+      }
+      if (!inspectMacApp(appInfo.appPath).codesignValid) {
+        resignMacAppAdhoc(appInfo.appPath);
+      }
+    } catch (rollbackErr) {
+      throw new Error(
+        `Failed to install app.asar (${installErr.message}), and rollback also failed (${rollbackErr.message}). Run "restore --from-backup" to recover from the snapshot.`
+      );
+    }
+    throw new Error(
+      `Failed to install app.asar; rolled back app.asar and Info.plist to their pre-write state. Cause: ${installErr.message}`
+    );
+  }
+}
+
 function handleApply(options) {
   const preset = resolveThemePreset(options.preset);
   const backdrop = resolveStageBackdrop(options.backdrop);
   const appInfo = inspectMacApp(options.appPath);
-  if (appInfo.runningPids.length > 0 && !options.force && !options.dryRun) {
-    throw new Error(
-      `Antigravity is currently running (PID: ${appInfo.runningPids.join(', ')}). Please quit Antigravity first, or pass --force to patch anyway.`
-    );
-  }
-
   const archive = readAsarArchive(appInfo.asarPath);
   const sources = readTargetSources(archive);
 
@@ -223,23 +253,27 @@ function handleApply(options) {
   console.log(`  - 重打包体积: ${archive.buffer.length} B -> ${rebuilt.buffer.length} B`);
   console.log(`  - 新 Header SHA-256: ${rebuilt.headerSha256} (校验 ${selfCheck.verifiedFileCount} 个文件)`);
 
+  const plistHashMatches = !appInfo.plistAsarHash || appInfo.plistAsarHash === archive.headerSha256;
+  if (rebuilt.headerSha256 === archive.headerSha256 && plistHashMatches && appInfo.codesignValid) {
+    console.log('当前应用已是该配置（app.asar、Info.plist 哈希与签名均一致），跳过写入与重签。');
+    return;
+  }
+
   if (options.dryRun) {
     console.log('[dry-run] 预演完成，未修改磁盘上的任何文件。');
     return;
   }
 
+  if (appInfo.runningPids.length > 0 && !options.force) {
+    throw new Error(
+      `Antigravity is currently running (PID: ${appInfo.runningPids.join(', ')}). Please quit Antigravity first, or pass --force to patch anyway.`
+    );
+  }
+
   const backup = ensureInitialBackup(appInfo);
   console.log(`独立备份: ${backup.created ? '已新建' : '已存在'} -> ${backup.backupDir}`);
 
-  replaceAsarAtomically(appInfo.asarPath, rebuilt.buffer);
-  const plistUpdated = updatePlistAsarIntegrity(appInfo.infoPlistPath, rebuilt.headerSha256);
-  resignMacAppAdhoc(appInfo.appPath);
-
-  const postInfo = inspectMacApp(appInfo.appPath);
-  verifyAsarBuffer(fs.readFileSync(postInfo.asarPath), postInfo.plistAsarHash ?? undefined);
-  if (!postInfo.codesignValid) {
-    throw new Error(`Post-patch codesign check failed: ${postInfo.codesignDetail}`);
-  }
+  const plistUpdated = installAsarWithRollback(appInfo, archive.buffer, rebuilt);
 
   console.log('应用成功:');
   console.log(`  - ElectronAsarIntegrity: ${plistUpdated ? '已同步更新' : '未启用'}`);
@@ -302,15 +336,7 @@ function handleRestore(options) {
     return;
   }
 
-  replaceAsarAtomically(appInfo.asarPath, rebuilt.buffer);
-  updatePlistAsarIntegrity(appInfo.infoPlistPath, rebuilt.headerSha256);
-  resignMacAppAdhoc(appInfo.appPath);
-
-  const postInfo = inspectMacApp(appInfo.appPath);
-  verifyAsarBuffer(fs.readFileSync(postInfo.asarPath), postInfo.plistAsarHash ?? undefined);
-  if (!postInfo.codesignValid) {
-    throw new Error(`Post-restore codesign check failed: ${postInfo.codesignDetail}`);
-  }
+  installAsarWithRollback(appInfo, archive.buffer, rebuilt);
 
   console.log('已精准卸载 antigravity-themes 皮肤补丁（保留其他共存补丁），校验与重签通过。');
 }

@@ -257,6 +257,7 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
       if (sel.includes('sidebar-split')) return fakeSidebarPane;
       return null;
     },
+    querySelectorAll: () => [],
     createElement: makeElement,
   };
 
@@ -267,6 +268,7 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
     },
     addEventListener: (name, fn) => winListeners.set(name, fn),
   };
+  fakeWindow.parent = fakeWindow;
 
   const runner = new Function('document', 'window', 'setTimeout', runtimeScript);
   runner(fakeDocument, fakeWindow, () => 0);
@@ -345,4 +347,136 @@ test('preload 与 utils/splash 支持任意预设幂等切换、共存汉化且�
   assert.equal(state.stageBackdrop, 'blueprint');
   assert.equal(state.themeVersion, '1.0.1');
   assert.equal(state.hasChineseLocalization, true);
+});
+
+const SIDECAR_REQUEST = { type: 'antigravity-themes:request-choices' };
+
+function createHeadlessRuntimeEnv({ storage = new Map(), sidecarFrames = [] } = {}) {
+  const rootAttrs = new Map();
+  const windowListeners = new Map();
+  const headChildren = [];
+  const fakeRoot = {
+    classList: { contains: () => false, toggle: () => {}, add: () => {}, remove: () => {} },
+    dataset: {},
+    style: { setProperty: () => {} },
+    getAttribute: (k) => rootAttrs.get(k) ?? null,
+    setAttribute: (k, v) => rootAttrs.set(k, String(v)),
+  };
+  const fakeHead = {
+    get lastElementChild() {
+      return headChildren.at(-1) ?? null;
+    },
+    appendChild(el) {
+      headChildren.push(el);
+      el.parentNode = fakeHead;
+      return el;
+    },
+  };
+  const fakeDocument = {
+    documentElement: fakeRoot,
+    head: fakeHead,
+    body: null,
+    addEventListener: () => {},
+    getElementById: (id) => headChildren.find((el) => el.id === id) ?? null,
+    querySelector: () => null,
+    querySelectorAll: (sel) => (sel === 'iframe[data-testid="sidecar-iframe"]' ? sidecarFrames : []),
+    createElement: (tag) => ({ tagName: tag.toUpperCase(), id: '', textContent: '', parentNode: null }),
+  };
+  const fakeWindow = {
+    localStorage: {
+      getItem: (k) => storage.get(k) ?? null,
+      setItem: (k, v) => storage.set(k, String(v)),
+    },
+    addEventListener: (name, fn) => windowListeners.set(name, [...(windowListeners.get(name) ?? []), fn]),
+  };
+  fakeWindow.parent = fakeWindow;
+  return { fakeDocument, fakeWindow, rootAttrs, windowListeners };
+}
+
+function runRuntimeIn(env, runtimeScript) {
+  new Function('document', 'window', 'setTimeout', runtimeScript)(env.fakeDocument, env.fakeWindow, () => 0);
+}
+
+test('runtime 在同一窗口被重复注入时只初始化一次（sidecar 每次加载会注入两次）', () => {
+  const runtimeScript = buildThemeRuntimeScript('iris', 'starlight');
+  const env = createHeadlessRuntimeEnv();
+  runRuntimeIn(env, runtimeScript);
+  runRuntimeIn(env, runtimeScript);
+  assert.equal(env.windowListeners.get('message').length, 1);
+  assert.equal(env.windowListeners.get('load').length, 1);
+});
+
+test('sidecar iframe 启动时向主窗口索取主题选择，且只接受 parent 下发的配置', () => {
+  const runtimeScript = buildThemeRuntimeScript('iris', 'starlight');
+  const messagesToParent = [];
+  const parentWindow = { postMessage: (message, targetOrigin) => messagesToParent.push({ message, targetOrigin }) };
+  const env = createHeadlessRuntimeEnv();
+  env.fakeWindow.parent = parentWindow;
+  runRuntimeIn(env, runtimeScript);
+
+  assert.deepEqual(messagesToParent, [{ message: SIDECAR_REQUEST, targetOrigin: '*' }]);
+  assert.equal(env.rootAttrs.get('data-at-preset'), 'iris');
+
+  const [onMessage] = env.windowListeners.get('message');
+  const choices = {
+    'antigravity-themes:preset': 'emerald',
+    'antigravity-themes:backdrop': 'none',
+    'antigravity-themes:density': 'comfortable',
+    'antigravity-themes:mode': 'light',
+  };
+  onMessage({ source: { postMessage() {} }, data: { type: 'antigravity-themes:choices', choices } });
+  assert.equal(env.rootAttrs.get('data-at-preset'), 'iris', '非 parent 来源的消息必须忽略');
+
+  onMessage({ source: parentWindow, data: { type: 'antigravity-themes:choices', choices } });
+  assert.equal(env.rootAttrs.get('data-at-preset'), 'emerald');
+  assert.equal(env.rootAttrs.get('data-at-backdrop'), 'none');
+  assert.equal(env.rootAttrs.get('data-at-density'), 'comfortable');
+  assert.equal(env.rootAttrs.get('data-at-mode'), 'light');
+
+  assert.throws(
+    () => onMessage({ source: parentWindow, data: { type: 'antigravity-themes:choices', choices: 'emerald' } }),
+    /choices 不是对象: "emerald"/
+  );
+});
+
+test('主窗口在主题选择变化或收到索取请求时，向 sidecar iframe 下发实际生效的选择', () => {
+  const runtimeScript = buildThemeRuntimeScript('iris', 'starlight');
+  const messagesToSidecar = [];
+  const sidecarFrame = {
+    contentWindow: { postMessage: (message, targetOrigin) => messagesToSidecar.push({ message, targetOrigin }) },
+  };
+  const storage = new Map([
+    ['antigravity-themes:preset', 'stone'],
+    ['antigravity-themes:mode', 'auto'],
+  ]);
+  const env = createHeadlessRuntimeEnv({ storage, sidecarFrames: [sidecarFrame] });
+  runRuntimeIn(env, runtimeScript);
+
+  assert.equal(messagesToSidecar.length, 1);
+  assert.deepEqual(messagesToSidecar[0], {
+    targetOrigin: '*',
+    message: {
+      type: 'antigravity-themes:choices',
+      choices: {
+        'antigravity-themes:preset': 'stone',
+        'antigravity-themes:backdrop': 'starlight',
+        'antigravity-themes:density': 'compact',
+        // auto 偏好下发的是实际生效的明暗（无 matchMedia 时探测结果为 dark）
+        'antigravity-themes:mode': 'dark',
+      },
+    },
+  });
+
+  const [onLoad] = env.windowListeners.get('load');
+  onLoad();
+  assert.equal(messagesToSidecar.length, 1, '选择未变化时不应重复下发');
+
+  storage.set('antigravity-themes:preset', 'mono');
+  onLoad();
+  assert.equal(messagesToSidecar.length, 2);
+  assert.equal(messagesToSidecar[1].message.choices['antigravity-themes:preset'], 'mono');
+
+  const [onMessage] = env.windowListeners.get('message');
+  onMessage({ source: sidecarFrame.contentWindow, data: SIDECAR_REQUEST });
+  assert.equal(messagesToSidecar.length, 3);
 });
