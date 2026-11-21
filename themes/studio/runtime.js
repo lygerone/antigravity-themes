@@ -106,14 +106,14 @@
         <stop offset="1" style="stop-color:var(--stage-sky-top)" />
       </linearGradient>
       <radialGradient id="at-sky-nebula" cx="0" cy="0" r="1" gradientTransform="translate(242 22) rotate(148) scale(138 78)" gradientUnits="userSpaceOnUse">
-        <stop style="stop-color:var(--stage-sky-glow-highlight)" stop-opacity="0.34" />
-        <stop offset="0.55" style="stop-color:var(--stage-sky-glow-secondary)" stop-opacity="0.14" />
+        <stop style="stop-color:var(--stage-sky-glow-highlight)" stop-opacity="0.38" />
+        <stop offset="0.55" style="stop-color:var(--stage-sky-glow-secondary)" stop-opacity="0.16" />
         <stop offset="1" style="stop-color:var(--stage-sky-bottom)" stop-opacity="0" />
       </radialGradient>
       <linearGradient id="at-sky-mist" x1="0" y1="56" x2="320" y2="96" gradientUnits="userSpaceOnUse">
-        <stop style="stop-color:var(--stage-sky-highlight)" stop-opacity="0.44" />
-        <stop offset="0.5" style="stop-color:var(--stage-sky-secondary)" stop-opacity="0.52" />
-        <stop offset="1" style="stop-color:var(--stage-sky-tertiary)" stop-opacity="0.44" />
+        <stop style="stop-color:var(--stage-sky-highlight)" stop-opacity="0.48" />
+        <stop offset="0.5" style="stop-color:var(--stage-sky-secondary)" stop-opacity="0.56" />
+        <stop offset="1" style="stop-color:var(--stage-sky-tertiary)" stop-opacity="0.48" />
       </linearGradient>
       <filter id="at-sky-blur" x="-20" y="-20" width="360" height="136" filterUnits="userSpaceOnUse">
         <feGaussianBlur stdDeviation="5" />
@@ -122,28 +122,28 @@
     <rect width="320" height="96" fill="url(#at-sky-base)" />
     <rect width="320" height="96" fill="url(#at-sky-nebula)" />
     <g style="fill:var(--stage-sky-line)">
-      <circle cx="18" cy="14" r="0.7" fill-opacity="0.82" />
-      <circle cx="46" cy="26" r="0.5" fill-opacity="0.55" />
-      <circle cx="74" cy="10" r="0.6" fill-opacity="0.74" />
-      <circle cx="108" cy="21" r="0.45" fill-opacity="0.5" />
-      <circle cx="136" cy="11" r="0.7" fill-opacity="0.82" />
-      <circle cx="164" cy="28" r="0.5" fill-opacity="0.54" />
-      <circle cx="196" cy="13" r="0.6" fill-opacity="0.72" />
-      <circle cx="228" cy="24" r="0.5" fill-opacity="0.58" />
-      <circle cx="262" cy="10" r="0.7" fill-opacity="0.84" />
-      <circle cx="294" cy="22" r="0.55" fill-opacity="0.64" />
-      <circle cx="32" cy="38" r="0.45" fill-opacity="0.45" />
-      <circle cx="148" cy="37" r="0.45" fill-opacity="0.46" />
-      <circle cx="246" cy="36" r="0.45" fill-opacity="0.48" />
+      <circle cx="18" cy="14" r="0.85" fill-opacity="0.9" />
+      <circle cx="46" cy="26" r="0.6" fill-opacity="0.65" />
+      <circle cx="74" cy="10" r="0.75" fill-opacity="0.84" />
+      <circle cx="108" cy="21" r="0.55" fill-opacity="0.6" />
+      <circle cx="136" cy="11" r="0.85" fill-opacity="0.9" />
+      <circle cx="164" cy="28" r="0.6" fill-opacity="0.62" />
+      <circle cx="196" cy="13" r="0.75" fill-opacity="0.82" />
+      <circle cx="228" cy="24" r="0.6" fill-opacity="0.68" />
+      <circle cx="262" cy="10" r="0.85" fill-opacity="0.92" />
+      <circle cx="294" cy="22" r="0.65" fill-opacity="0.72" />
+      <circle cx="32" cy="38" r="0.55" fill-opacity="0.55" />
+      <circle cx="148" cy="37" r="0.55" fill-opacity="0.56" />
+      <circle cx="246" cy="36" r="0.55" fill-opacity="0.58" />
     </g>
-    <g style="fill:var(--stage-sky-sparkle)" fill-opacity="0.82">
-      <path d="M88 26 L89.1 28.4 L91.5 29.5 L89.1 30.6 L88 33 L86.9 30.6 L84.5 29.5 L86.9 28.4 Z" />
-      <path d="M208 29 L208.9 31 L211 31.9 L208.9 32.8 L208 34.8 L207.1 32.8 L205 31.9 L207.1 31 Z" />
-      <path d="M282 14 L282.8 15.8 L284.6 16.6 L282.8 17.4 L282 19.2 L281.2 17.4 L279.4 16.6 L281.2 15.8 Z" />
+    <g style="fill:var(--stage-sky-sparkle)" fill-opacity="0.92">
+      <path d="M88 25 L89.3 28.2 L92.5 29.5 L89.3 30.8 L88 34 L86.7 30.8 L83.5 29.5 L86.7 28.2 Z" />
+      <path d="M208 28 L209.1 30.6 L211.8 31.7 L209.1 32.8 L208 35.4 L206.9 32.8 L204.2 31.7 L206.9 30.6 Z" />
+      <path d="M282 13 L283 15.4 L285.4 16.4 L283 17.4 L282 19.8 L281 17.4 L278.6 16.4 L281 15.4 Z" />
     </g>
     <g filter="url(#at-sky-blur)">
-      <ellipse cx="76" cy="86" rx="92" ry="26" fill="url(#at-sky-mist)" fill-opacity="0.72" />
-      <ellipse cx="238" cy="90" rx="108" ry="24" fill="url(#at-sky-mist)" fill-opacity="0.64" />
+      <ellipse cx="76" cy="86" rx="92" ry="26" fill="url(#at-sky-mist)" fill-opacity="0.76" />
+      <ellipse cx="238" cy="90" rx="108" ry="24" fill="url(#at-sky-mist)" fill-opacity="0.68" />
     </g>
   </svg>`;
 
@@ -156,29 +156,29 @@
         <stop offset="1" style="stop-color:var(--stage-blueprint-top)" />
       </linearGradient>
       <radialGradient id="at-bp-light" cx="0" cy="0" r="1" gradientTransform="translate(230 16) rotate(140) scale(132 76)" gradientUnits="userSpaceOnUse">
-        <stop style="stop-color:var(--stage-blueprint-highlight)" stop-opacity="0.32" />
-        <stop offset="0.55" style="stop-color:var(--stage-blueprint-secondary)" stop-opacity="0.14" />
+        <stop style="stop-color:var(--stage-blueprint-highlight)" stop-opacity="0.34" />
+        <stop offset="0.55" style="stop-color:var(--stage-blueprint-secondary)" stop-opacity="0.16" />
         <stop offset="1" style="stop-color:var(--stage-blueprint-bottom)" stop-opacity="0" />
       </radialGradient>
       <pattern id="at-bp-fine" width="10" height="10" patternUnits="userSpaceOnUse">
-        <path d="M10 0H0V10" style="stroke:var(--stage-blueprint-grid)" stroke-opacity="0.13" stroke-width="0.5" />
+        <path d="M10 0H0V10" style="stroke:var(--stage-blueprint-grid)" stroke-opacity="0.18" stroke-width="0.55" />
       </pattern>
       <pattern id="at-bp-coarse" width="40" height="40" patternUnits="userSpaceOnUse">
-        <path d="M40 0H0V40" style="stroke:var(--stage-blueprint-grid)" stroke-opacity="0.25" stroke-width="0.65" />
+        <path d="M40 0H0V40" style="stroke:var(--stage-blueprint-grid)" stroke-opacity="0.34" stroke-width="0.75" />
       </pattern>
-      <pattern id="at-bp-ticks" width="40" height="6" patternUnits="userSpaceOnUse">
-        <path d="M8 0V2.5M16 0V2.5M24 0V4.2M32 0V2.5" style="stroke:var(--stage-blueprint-line)" stroke-opacity="0.46" stroke-width="0.55" />
+      <pattern id="at-bp-ticks" width="40" height="7" patternUnits="userSpaceOnUse">
+        <path d="M8 0V2.8M16 0V2.8M24 0V5M32 0V2.8" style="stroke:var(--stage-blueprint-line)" stroke-opacity="0.58" stroke-width="0.65" />
       </pattern>
     </defs>
     <rect width="360" height="96" fill="url(#at-bp-base)" />
     <rect width="360" height="96" fill="url(#at-bp-light)" />
     <rect width="360" height="96" fill="url(#at-bp-fine)" />
     <rect width="360" height="96" fill="url(#at-bp-coarse)" />
-    <rect width="360" height="6" fill="url(#at-bp-ticks)" />
-    <g style="stroke:var(--stage-blueprint-line)" stroke-linecap="round" stroke-opacity="0.48" stroke-width="0.65">
+    <rect width="360" height="7" fill="url(#at-bp-ticks)" />
+    <g style="stroke:var(--stage-blueprint-line)" stroke-linecap="round" stroke-opacity="0.6" stroke-width="0.75">
       <path d="M168 58H268" stroke-dasharray="4 4" />
       <path d="M168 54V62M268 54V62" />
-      <circle cx="218" cy="36" r="14" stroke-dasharray="3 4" stroke-opacity="0.38" />
+      <circle cx="218" cy="36" r="14" stroke-dasharray="3 4" stroke-opacity="0.48" />
       <path d="M214 36H222M218 32V40" />
       <path d="M48 52H54M51 49V55" />
     </g>
@@ -405,7 +405,11 @@
     };
 
     applyWidth(sidebarPane.getBoundingClientRect().width);
-    syncStageArtwork(sidebarPane);
+    // 直接挂载到拥有 bg-sidebar 的真实侧边栏导航容器内（不依赖英文 aria-label，兼容任意语言本地化）
+    const sidebarNav =
+      document.querySelector('[data-testid="sidebar-split"] > :first-child [role="navigation"]') ??
+      sidebarPane;
+    syncStageArtwork(sidebarNav);
 
     if (typeof ResizeObserver !== 'undefined' && observedSidebarEl !== sidebarPane) {
       if (sidebarObserver) {

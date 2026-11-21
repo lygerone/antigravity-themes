@@ -267,11 +267,17 @@ html[data-at-skin="studio"] body[data-has-browser-hole="true"] .agy-sheet[data-s
 
 /* ---------------- 左侧栏顶部艺术纹理容器 ---------------- */
 html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child {
-  position: relative;
   background-color: var(--at-sidebar);
 }
 
-html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child > :not(.at-stage-backdrop) {
+html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child [role="navigation"] {
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--at-sidebar) !important;
+}
+
+html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child [role="navigation"] > :not(.at-stage-backdrop) {
   position: relative;
   z-index: 1;
 }
@@ -279,13 +285,13 @@ html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child > 
 .at-stage-backdrop {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 82px;
+  height: 92px;
   z-index: 0;
   pointer-events: none;
   user-select: none;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 54%, transparent 94%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 54%, transparent 94%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 56%, transparent 96%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 56%, transparent 96%);
 }
 
 .at-stage-backdrop::after {
@@ -295,11 +301,11 @@ html[data-at-skin="studio"] body [data-testid="sidebar-split"] > :first-child > 
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    transparent 28%,
-    color-mix(in srgb, var(--at-sidebar) 14%, transparent) 44%,
-    color-mix(in srgb, var(--at-sidebar) 46%, transparent) 62%,
-    color-mix(in srgb, var(--at-sidebar) 84%, transparent) 80%,
-    var(--at-sidebar) 95%
+    transparent 34%,
+    color-mix(in srgb, var(--at-sidebar) 18%, transparent) 52%,
+    color-mix(in srgb, var(--at-sidebar) 56%, transparent) 72%,
+    color-mix(in srgb, var(--at-sidebar) 88%, transparent) 88%,
+    var(--at-sidebar) 98%
   );
 }
 

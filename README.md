@@ -32,18 +32,18 @@
 先完全退出 Antigravity 桌面客户端（`Cmd+Q`），然后运行：
 
 ```bash
-# 查看已收录的全部主题与顶栏纹理
-node bin/antigravity-themes.mjs themes
+# 免克隆一键安装全部 6 套双色皮肤与内置切换器（默认 iris + starlight 星空顶栏）
+npx antigravity-themes apply
 
-# 一次安装全部 6 套双色皮肤与内置切换器（默认 iris + starlight 星空顶栏）
-node bin/antigravity-themes.mjs apply
+# 查看已收录的全部主题与顶栏纹理
+npx antigravity-themes themes
 
 # 指定默认启动色与初始预设 / 顶栏纹理
-node bin/antigravity-themes.mjs apply --preset slate --backdrop starlight
-node bin/antigravity-themes.mjs apply --preset mono --backdrop blueprint
+npx antigravity-themes apply --preset slate --backdrop starlight
+npx antigravity-themes apply --preset mono --backdrop blueprint
 
 # 校验 ASAR 分块完整性与 macOS 代码签名
-node bin/antigravity-themes.mjs verify
+npx antigravity-themes verify
 ```
 
 重新打开 Antigravity 后，随时按 **`Cmd+Option+A`** 或点击左侧栏底角调色盘图标，即可无缝切换皮肤、白天/黑夜/自动模式、顶栏纹理与界面密度。

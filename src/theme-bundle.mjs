@@ -10,7 +10,7 @@ const PRESET_PLACEHOLDER = '__AT_THEME_PRESET__';
 const BACKDROP_PLACEHOLDER = '__AT_THEME_BACKDROP__';
 
 export const THEME_NAME = 'studio';
-export const THEME_VERSION = '1.0.0';
+export const THEME_VERSION = '1.0.1';
 export const DEFAULT_PRESET = 'iris';
 export const DEFAULT_BACKDROP = 'starlight';
 

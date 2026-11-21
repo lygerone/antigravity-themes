@@ -1,12 +1,12 @@
 {
   "name": "antigravity-themes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "面向 macOS ARM64 Antigravity 桌面端的双色皮肤库、布局精修与零依赖实时切换工具",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "antigravity-themes": "./bin/antigravity-themes.mjs",
-    "agy-themes": "./bin/antigravity-themes.mjs"
+    "antigravity-themes": "bin/antigravity-themes.mjs",
+    "agy-themes": "bin/antigravity-themes.mjs"
   },
   "files": [
     "bin",
@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lygerone/antigravity-themes.git"
+    "url": "git+https://github.com/lygerone/antigravity-themes.git"
   },
   "homepage": "https://github.com/lygerone/antigravity-themes#readme",
   "bugs": {

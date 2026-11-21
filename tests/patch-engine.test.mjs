@@ -220,16 +220,28 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
     appendChild: (el) => fakeHead.appendChild(el),
   };
 
-  const fakeSidebarPane = {
-    getBoundingClientRect: () => ({ width: 268 }),
+  const fakeSidebarNav = {
     querySelector: (sel) =>
       sel.includes('at-stage-backdrop')
         ? sidebarChildren.find((c) => c.className === 'at-stage-backdrop') ?? null
         : null,
     appendChild(el) {
-      el.parentNode = fakeSidebarPane;
+      el.parentNode = fakeSidebarNav;
       sidebarChildren.push(el);
       return el;
+    },
+    removeChild(el) {
+      const idx = sidebarChildren.indexOf(el);
+      if (idx !== -1) sidebarChildren.splice(idx, 1);
+      el.parentNode = null;
+    },
+  };
+
+  const fakeSidebarPane = {
+    getBoundingClientRect: () => ({ width: 268 }),
+    querySelector: () => null,
+    appendChild() {
+      throw new Error('Stage backdrop should mount into Sidebar navigation container, not split wrapper');
     },
   };
 
@@ -240,7 +252,11 @@ test('渲染层 runtime 支持 preload 延迟挂载、明暗模式覆盖同步�
     addEventListener: (name, fn) => docListeners.set(name, fn),
     getElementById: (id) =>
       headChildren.find((el) => el.id === id) ?? bodyChildren.find((el) => el.id === id) ?? null,
-    querySelector: (sel) => (sel.includes('sidebar-split') ? fakeSidebarPane : null),
+    querySelector: (sel) => {
+      if (sel.includes('[role="navigation"]')) return fakeSidebarNav;
+      if (sel.includes('sidebar-split')) return fakeSidebarPane;
+      return null;
+    },
     createElement: makeElement,
   };
 
@@ -327,6 +343,6 @@ test('preload 与 utils/splash 支持任意预设幂等切换、共存汉化且�
   assert.equal(state.themeId, 'studio');
   assert.equal(state.themePreset, 'slate');
   assert.equal(state.stageBackdrop, 'blueprint');
-  assert.equal(state.themeVersion, '1.0.0');
+  assert.equal(state.themeVersion, '1.0.1');
   assert.equal(state.hasChineseLocalization, true);
 });
