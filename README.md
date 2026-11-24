@@ -80,7 +80,26 @@ npx antigravity-themes restore --from-backup
 
 ### After Upgrading Antigravity
 
-Upgrading the Antigravity desktop app replaces `/Applications/Antigravity.app`, so theme patches must be re-applied. Your selected theme, Light/Dark mode, backdrop, and density are stored in the app's user-data `localStorage` and remain intact — simply quit Antigravity and run `npx antigravity-themes apply` again after updating.
+Upgrading replaces `/Applications/Antigravity.app`, so the theme must be re-applied. Your selected theme, Light/Dark mode, backdrop, and density are stored in the app's user-data `localStorage` and remain intact.
+
+A patched app is ad-hoc signed, so the in-app "Restart to update" button usually never appears (the log shows `Code signature ... did not pass validation`). Upgrade manually instead:
+
+1. **Install the official new version.** The updater has usually downloaded it to `~/Library/Caches/com.google.antigravity/pending/Antigravity.zip`; you can also download it from the official site. To confirm it is signed by Google before installing:
+
+   ```bash
+   ditto -x -k ~/Library/Caches/com.google.antigravity/pending/Antigravity.zip /tmp/agy-new
+   spctl -a -vv /tmp/agy-new/Antigravity.app   # should show Notarized Developer ID / Google LLC
+   ```
+
+   Quit Antigravity completely (`Cmd+Q`) and replace `/Applications/Antigravity.app` with the new version.
+2. **Reinstall other patches.** If you use other patches (e.g. a localization patch), reinstall them the way they require.
+3. **Re-apply the theme.** With Antigravity still quit, run:
+
+   ```bash
+   npx antigravity-themes@latest apply
+   ```
+
+   The first apply on a new version automatically creates a snapshot in `~/.antigravity-themes/backups/<new-version>/`.
 
 ## Testing
 

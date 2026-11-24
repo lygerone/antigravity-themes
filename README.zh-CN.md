@@ -80,7 +80,26 @@ npx antigravity-themes restore --from-backup
 
 ### 升级 Antigravity 后的恢复说明
 
-升级 Antigravity 客户端会整包覆盖 `/Applications/Antigravity.app`，皮肤补丁需重新应用；你此前在切换器中选择的主题、明暗模式与密度保存在应用用户数据 `localStorage` 中不会丢失，升级后退出客户端重新执行一次 `npx antigravity-themes apply` 即可恢复。
+升级会整包替换 `/Applications/Antigravity.app`，皮肤需要重新应用；你在切换器中选择的主题、明暗模式与密度保存在应用用户数据 `localStorage` 中，不会丢失。
+
+打过补丁的应用是 Ad-hoc 签名，应用内的"更新并重启"通常不会出现（日志里会看到 `Code signature ... did not pass validation`）。升级请按以下步骤手动进行：
+
+1. **安装官方新版**：更新器一般已把新版下载到 `~/Library/Caches/com.google.antigravity/pending/Antigravity.zip`，也可以去官网下载。安装前可以先确认它是 Google 官方签名：
+
+   ```bash
+   ditto -x -k ~/Library/Caches/com.google.antigravity/pending/Antigravity.zip /tmp/agy-new
+   spctl -a -vv /tmp/agy-new/Antigravity.app   # 应显示 Notarized Developer ID / Google LLC
+   ```
+
+   完全退出 Antigravity（`Cmd+Q`），用新版替换 `/Applications/Antigravity.app`。
+2. **重装其他补丁**：如果你用了汉化等其他补丁，按它们各自的方式重新安装。
+3. **重新应用皮肤**：保持 Antigravity 退出状态，执行：
+
+   ```bash
+   npx antigravity-themes@latest apply
+   ```
+
+   首次在新版本上 apply 会自动在 `~/.antigravity-themes/backups/<新版本号>/` 生成快照。
 
 ## 测试
 
